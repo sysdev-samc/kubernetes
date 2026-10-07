@@ -1,0 +1,35 @@
+# Copie la config du jackett Docker (qui peut continuer à tourner : ce ne sont que des
+# fichiers JSON) et fait pointer jackett vers le flaresolverr de son pod.
+# À supprimer une fois la copie terminée.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jackett-migration
+  namespace: media
+spec:
+  nodeName: nas2
+  restartPolicy: Never
+  containers:
+    - name: copy
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          find /new -mindepth 1 -maxdepth 1 ! -name lost+found -exec rm -rf {} +
+          cp -a /old/. /new/
+          # 192.168.1.2:8191 (flaresolverr Docker) -> flaresolverr dans le même pod
+          sed -i -E 's#"FlareSolverrUrl": *"[^"]*"#"FlareSolverrUrl": "http://localhost:8191/v1"#' /new/Jackett/ServerConfig.json
+          grep -o '"FlareSolverrUrl": *"[^"]*"' /new/Jackett/ServerConfig.json
+          chown -R 911:100 /new
+          echo "indexeurs : $(ls /new/Jackett/Indexers/*.json | wc -l)"
+          echo COPIE_OK
+      volumeMounts:
+        - { name: old, mountPath: /old, readOnly: true }
+        - { name: new, mountPath: /new }
+  volumes:
+    - name: old
+      hostPath: { path: /ssd1/container/jackett/config, type: Directory }
+    - name: new
+      persistentVolumeClaim: { claimName: jackett-config }

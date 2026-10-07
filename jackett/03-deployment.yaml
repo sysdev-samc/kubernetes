@@ -1,0 +1,136 @@
+# Pod "recherche" : gluetun (VPN) + jackett + flaresolverr.
+# Les 3 conteneurs partagent la même carte réseau : TOUT leur trafic Internet passe par
+# le VPN (y compris le DNS et les visites de flaresolverr sur les sites Cloudflare).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jackett
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: jackett }
+  template:
+    metadata:
+      labels: { app: jackett }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      # DNS de gluetun (127.0.0.1) pour tout le pod : pas de fuite DNS, et contourne
+      # les blocages DNS des fournisseurs d'accès.
+      dnsPolicy: None
+      dnsConfig:
+        nameservers: [127.0.0.1]
+      initContainers:
+        # 1. VPN (sidecar natif) : démarre en premier, tourne toute la vie du pod.
+        - name: gluetun
+          image: qmcgaw/gluetun:v3.39.1
+          restartPolicy: Always
+          securityContext:
+            capabilities:
+              add: [NET_ADMIN]
+          # Fournisseur, pays et identifiants VPN : toutes les variables de
+          # /ssd1/kubernetes/gluetun/vpn.env (Secret "gluetun-env", voir transmission/00-secret.sh).
+          # Ne PAS les redéfinir dans "env:" ci-dessous : env est prioritaire sur envFrom.
+          envFrom:
+            - secretRef: { name: gluetun-env }
+          env:
+            - { name: FIREWALL_INPUT_PORTS, value: "9117" }      # interface / API de jackett
+            - { name: FIREWALL_OUTBOUND_SUBNETS, value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24" }
+            - { name: HTTPPROXY, value: "off" }
+            - { name: SHADOWSOCKS, value: "off" }
+            - { name: TZ, value: Europe/Paris }
+          startupProbe:
+            exec: { command: [/gluetun-entrypoint, healthcheck] }
+            periodSeconds: 5
+            failureThreshold: 60
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { memory: 256Mi }
+          volumeMounts:
+            - { name: gluetun-data, mountPath: /gluetun }
+            - { name: vpn, mountPath: /gluetun/client.crt, subPath: client.crt, readOnly: true }
+            - { name: vpn, mountPath: /gluetun/client.key, subPath: client.key, readOnly: true }
+            - { name: tun, mountPath: /dev/net/tun }
+        # 2. Avant jackett : flaresolverr est dans le même pod -> localhost
+        - name: flaresolverr-url
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              sed -i -E 's#"FlareSolverrUrl": *"[^"]*"#"FlareSolverrUrl": "http://localhost:8191/v1"#' /config/Jackett/ServerConfig.json
+              grep -o '"FlareSolverrUrl": *"[^"]*"' /config/Jackett/ServerConfig.json
+          volumeMounts:
+            - { name: config, mountPath: /config }
+      containers:
+        - name: jackett
+          image: lscr.io/linuxserver/jackett:v0.24.2756-ls46   # version de départ (voir AUTO_UPDATE)
+          env:
+            - { name: TZ,   value: Europe/Paris }
+            - { name: PUID, value: "911" }
+            - { name: PGID, value: "100" }
+            # Exception à la règle "version figée" : jackett se met à jour lui-même
+            # (les définitions des sites changent souvent). Comme avant dans Docker.
+            - { name: AUTO_UPDATE, value: "true" }
+          ports:
+            - { name: http, containerPort: 9117 }
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /config }
+        - name: flaresolverr
+          image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
+          env:
+            - { name: TZ, value: Europe/Paris }
+            - { name: LOG_LEVEL, value: info }
+          # Pas de "ports:" exposé : seul jackett l'utilise, via localhost:8191
+          # Sondes exécutées DANS le conteneur (localhost) : le pare-feu de gluetun
+          # bloquerait une sonde venant de l'extérieur sur le port 8191.
+          readinessProbe:
+            exec: { command: [python3, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8191/health', timeout=5)"] }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec: { command: [python3, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8191/health', timeout=5)"] }
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { memory: 1Gi }               # Chromium peut être gourmand
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: jackett-config }
+        - name: gluetun-data
+          emptyDir: {}
+        - name: vpn
+          secret: { secretName: gluetun-certs }   # client.crt / client.key
+        - name: tun
+          hostPath: { path: /dev/net/tun, type: CharDevice }

@@ -1,0 +1,17 @@
+# PHASE PARALLÈLE : sonarr k8s ne peut joindre ni le LAN ni les conteneurs Docker
+# (transmission, jackett...). Internet et le DNS du cluster restent autorisés.
+# À SUPPRIMER à la bascule finale : kubectl delete -f 06-parallel-netpol.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sonarr-parallel-no-lan
+  namespace: media
+spec:
+  podSelector:
+    matchLabels: { app: sonarr }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [192.168.1.0/24, 172.16.0.0/12]

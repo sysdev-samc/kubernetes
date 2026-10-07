@@ -1,0 +1,16 @@
+# seer sur l'IP partagée du cluster : http://192.168.1.150:5055
+apiVersion: v1
+kind: Service
+metadata:
+  name: seer
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: seer }
+  ports:
+    - { name: http, port: 5055, targetPort: http }

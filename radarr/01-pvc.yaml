@@ -1,0 +1,13 @@
+# Volume Longhorn pour /config : 2 répliques (une sur nas1, une sur nas2).
+# Si nas2 meurt, la copie de nas1 est utilisée.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-config
+  namespace: media
+spec:
+  storageClassName: longhorn      # numberOfReplicas: "2" dans cette StorageClass
+  accessModes: [ReadWriteOnce]    # monté par un seul nœud à la fois (SQLite)
+  resources:
+    requests:
+      storage: 5Gi

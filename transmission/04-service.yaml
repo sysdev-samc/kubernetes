@@ -1,0 +1,18 @@
+# Deux usages pour un seul service :
+#  - toi : http://192.168.1.150:9091 (IP partagée MetalLB)
+#  - radarr / sonarr : http://transmission:9091 (nom DNS interne du cluster, même namespace)
+apiVersion: v1
+kind: Service
+metadata:
+  name: transmission
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: transmission }
+  ports:
+    - { name: http, port: 9091, targetPort: http }

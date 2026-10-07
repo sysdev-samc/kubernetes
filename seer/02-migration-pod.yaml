@@ -1,0 +1,32 @@
+# Copie /ssd1/container/seerr/config (lecture seule, rien n'est modifié) vers Longhorn.
+# Phase A : copie "à chaud" (seer Docker en marche) -> suffisante pour tester.
+# Phase B : seer Docker arrêté -> copie propre et définitive.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: seer-migration
+  namespace: media
+spec:
+  nodeName: nas2
+  restartPolicy: Never
+  containers:
+    - name: copy
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          find /new -mindepth 1 -maxdepth 1 ! -name lost+found -exec rm -rf {} +
+          cp -a /old/. /new/
+          chown -R 1000:1000 /new          # seer tourne en utilisateur "node" (UID 1000)
+          ls -la /new /new/db
+          echo COPIE_OK
+      volumeMounts:
+        - { name: old, mountPath: /old, readOnly: true }
+        - { name: new, mountPath: /new }
+  volumes:
+    - name: old
+      hostPath: { path: /ssd1/container/seerr/config, type: Directory }
+    - name: new
+      persistentVolumeClaim: { claimName: seer-config }

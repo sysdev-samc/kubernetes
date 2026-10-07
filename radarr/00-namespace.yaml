@@ -1,0 +1,5 @@
+# Un namespace = un "dossier" logique pour ranger les services media (radarr, sonarr, ...)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media

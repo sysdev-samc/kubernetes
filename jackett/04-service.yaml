@@ -1,0 +1,18 @@
+# Deux usages pour un seul service :
+#  - toi : http://192.168.1.150:9117 (IP partagée MetalLB)
+#  - radarr / sonarr : http://jackett:9117 (nom DNS interne du cluster)
+apiVersion: v1
+kind: Service
+metadata:
+  name: jackett
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: jackett }
+  ports:
+    - { name: http, port: 9117, targetPort: http }

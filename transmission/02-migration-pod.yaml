@@ -1,0 +1,44 @@
+# PHASE B : copie la config de transmission (torrents, reprises, réglages)
+# et le contenu de /volume1/downloads (sauf watch) dans les volumes Longhorn.
+# Transmission Docker ET k8s doivent être arrêtés. À supprimer une fois terminé.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: transmission-migration
+  namespace: media
+spec:
+  nodeName: nas2
+  restartPolicy: Never
+  containers:
+    - name: copy
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          # Vide la config créée pendant la phase A (en gardant lost+found)
+          find /newcfg -mindepth 1 -maxdepth 1 ! -name lost+found -exec rm -rf {} +
+          cp -a /oldcfg/. /newcfg/
+          for d in complete incomplete temp; do
+            [ -d /olddl/$d ] && cp -a /olddl/$d /newdl/
+          done
+          chown -R 911:100 /newcfg /newdl
+          echo "config :"; ls /newcfg
+          echo "torrents : $(ls /newcfg/torrents | wc -l)"
+          echo "downloads :"; du -sh /newdl/*
+          echo COPIE_OK
+      volumeMounts:
+        - { name: oldcfg, mountPath: /oldcfg, readOnly: true }
+        - { name: olddl,  mountPath: /olddl,  readOnly: true }
+        - { name: newcfg, mountPath: /newcfg }
+        - { name: newdl,  mountPath: /newdl }
+  volumes:
+    - name: oldcfg
+      hostPath: { path: /ssd1/container/transmission/config, type: Directory }
+    - name: olddl
+      hostPath: { path: /volume1/downloads, type: Directory }
+    - name: newcfg
+      persistentVolumeClaim: { claimName: transmission-config }
+    - name: newdl
+      persistentVolumeClaim: { claimName: downloads }

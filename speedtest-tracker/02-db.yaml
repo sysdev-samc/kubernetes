@@ -1,0 +1,71 @@
+# MariaDB pour speedtest-tracker. Service interne seulement : speedtest-db:3306
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-db
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                # une seule MariaDB à la fois sur ses fichiers
+  selector:
+    matchLabels: { app: speedtest-db }
+  template:
+    metadata:
+      labels: { app: speedtest-db }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      containers:
+        - name: mariadb
+          image: mariadb:10.11.18            # version figée = celle du Docker
+          env:
+            - { name: MARIADB_DATABASE, value: speedtest_tracker }
+            - { name: MARIADB_USER, value: speedy }
+            - name: MARIADB_PASSWORD
+              valueFrom: { secretKeyRef: { name: speedtest-tracker, key: DB_PASSWORD } }
+            - { name: MARIADB_RANDOM_ROOT_PASSWORD, value: "yes" }
+          ports:
+            - { name: mysql, containerPort: 3306 }
+          # Même test de santé que la compose Docker
+          readinessProbe:
+            exec: { command: [healthcheck.sh, --connect, --innodb_initialized] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec: { command: [healthcheck.sh, --connect, --innodb_initialized] }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits:   { memory: 1Gi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/mysql }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: speedtest-db }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: speedtest-db
+  namespace: media
+spec:
+  selector: { app: speedtest-db }
+  ports:
+    - { name: mysql, port: 3306, targetPort: mysql }

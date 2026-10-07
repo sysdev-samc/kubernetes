@@ -1,0 +1,23 @@
+# PHASE PARALLÈLE : pare-feu sortant pour le radarr k8s.
+# Il peut aller sur Internet (métadonnées TMDB, mises à jour) et parler au cluster (DNS),
+# mais PAS au LAN 192.168.1.0/24 ni aux conteneurs Docker 172.16.0.0/12
+# -> impossible de joindre transmission, jackett, seer...
+# Pourquoi 172.16.0.0/12 : Docker réécrit 192.168.1.2:9091 en 172.20.x.x (le conteneur)
+# AVANT que le pare-feu k8s ne regarde la destination.
+# Ainsi, même si un client de téléchargement est encore activé, rien ne part en double.
+# Les connexions ENTRANTES (toi qui ouvres l'interface) ne sont pas concernées.
+# À SUPPRIMER au moment de la bascule finale : kubectl delete -f 06-parallel-netpol.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: radarr-parallel-no-lan
+  namespace: media
+spec:
+  podSelector:
+    matchLabels: { app: radarr }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [192.168.1.0/24, 172.16.0.0/12]

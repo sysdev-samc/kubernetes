@@ -1,0 +1,23 @@
+# IP unique du cluster pour tous les services k8s : 192.168.1.150.
+# (192.168.1.151-159 restent réservées pour plus tard, hors pool DHCP 197-252)
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lan
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.1.150/32
+---
+# Mode L2 : le nœud qui porte l'IP répond aux requêtes ARP ("qui a 192.168.1.150 ?").
+# Seuls nas1 et nas2 peuvent la porter ; si l'un tombe, l'autre la reprend en quelques secondes.
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: lan
+  namespace: metallb-system
+spec:
+  ipAddressPools: [lan]
+  nodeSelectors:
+    - matchExpressions:
+        - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }

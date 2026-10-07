@@ -1,0 +1,29 @@
+# PHASE PARALLÈLE : la copie de seer ne peut joindre NI le LAN, NI Docker, NI les autres
+# pods du cluster (radarr, sonarr...) -> aucune demande ne peut partir en double.
+# Autorisé : Internet (TMDB pour les affiches/infos) et le DNS du cluster.
+# Les connexions ENTRANTES (toi -> interface) ne sont pas concernées.
+# À SUPPRIMER à la bascule finale (phase-b.sh le fait).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: seer-parallel-isole
+  namespace: media
+spec:
+  podSelector:
+    matchLabels: { app: seer }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            # LAN, réseaux Docker, pods et services du cluster
+            # (radarr est joint via 192.168.1.150 -> réécrit en IP de pod 10.42.x.x)
+            except: [192.168.1.0/24, 172.16.0.0/12, 10.42.0.0/16, 10.43.0.0/16]
+    - to:                          # DNS du cluster (CoreDNS), sinon plus aucun nom ne se résout
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }

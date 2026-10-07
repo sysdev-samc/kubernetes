@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transmission
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: transmission }
+  template:
+    metadata:
+      labels: { app: transmission }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      # Tout le pod utilise le DNS de gluetun (127.0.0.1), qui passe par le VPN :
+      # sinon les noms des trackers seraient résolus hors VPN (fuite DNS).
+      dnsPolicy: None
+      dnsConfig:
+        nameservers: [127.0.0.1]
+      initContainers:
+        # "Sidecar natif" : démarre AVANT transmission et tourne pendant toute la vie du pod.
+        # Transmission ne démarre qu'une fois le VPN connecté (startupProbe).
+        - name: gluetun
+          image: qmcgaw/gluetun:v3.39.1          # même version que le gluetun Docker
+          restartPolicy: Always
+          securityContext:
+            capabilities:
+              add: [NET_ADMIN]                   # pour créer le tunnel et le pare-feu
+          # Fournisseur, pays et identifiants VPN : toutes les variables de
+          # /ssd1/kubernetes/gluetun/vpn.env (Secret "gluetun-env", voir transmission/00-secret.sh).
+          # Ne PAS les redéfinir dans "env:" ci-dessous : env est prioritaire sur envFrom.
+          envFrom:
+            - secretRef: { name: gluetun-env }
+          env:
+            # Laisse entrer l'interface web / RPC de transmission
+            - { name: FIREWALL_INPUT_PORTS, value: "9091" }
+            # Réseaux joignables HORS VPN : pods, services k8s et LAN (pour répondre aux clients)
+            - { name: FIREWALL_OUTBOUND_SUBNETS, value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24" }
+            - { name: HTTPPROXY, value: "off" }  # le proxy reste assuré par le gluetun Docker
+            - { name: SHADOWSOCKS, value: "off" }
+            - { name: TZ, value: Europe/Paris }
+          startupProbe:
+            exec: { command: [/gluetun-entrypoint, healthcheck] }
+            periodSeconds: 5
+            failureThreshold: 60                 # jusqu'à 5 min pour établir le VPN
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { memory: 256Mi }
+          volumeMounts:
+            - { name: gluetun-data, mountPath: /gluetun }
+            - { name: vpn, mountPath: /gluetun/client.crt, subPath: client.crt, readOnly: true }
+            - { name: vpn, mountPath: /gluetun/client.key, subPath: client.key, readOnly: true }
+            - { name: tun, mountPath: /dev/net/tun }
+      containers:
+        - name: transmission
+          image: lscr.io/linuxserver/transmission:4.1.3-r0-ls363   # version figée = celle du Docker
+          env:
+            - { name: TZ,   value: Europe/Paris }
+            - { name: PUID, value: "911" }
+            - { name: PGID, value: "100" }
+          ports:
+            - { name: http, containerPort: 9091 }
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { memory: 1Gi }
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: downloads, mountPath: /downloads }
+            - { name: watch, mountPath: /watch }
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: transmission-config }
+        - name: downloads
+          persistentVolumeClaim: { claimName: downloads }
+        # Dossier watch : sur le disque de nas2, pour que tu puisses y déposer des .torrent
+        # par le partage réseau. (Vide si le pod tourne sur nas1.)
+        - name: watch
+          hostPath: { path: /volume1/downloads/watch, type: DirectoryOrCreate }
+        - name: gluetun-data
+          emptyDir: {}
+        - name: vpn
+          secret: { secretName: gluetun-certs }   # client.crt / client.key
+        - name: tun
+          hostPath: { path: /dev/net/tun, type: CharDevice }

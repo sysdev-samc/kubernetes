@@ -1,0 +1,40 @@
+# Pod temporaire : restaure la dernière sauvegarde de radarr (Docker) dans le volume Longhorn.
+# On utilise un .zip de sauvegarde (cohérent, fait par radarr lui-même) plutôt que la base
+# en cours d'écriture : le radarr Docker peut donc continuer de tourner.
+# Réutilisable pour la bascule finale (radarr k8s arrêté) : il efface l'ancienne base d'abord.
+# À supprimer une fois la copie terminée.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: radarr-migration
+  namespace: media
+spec:
+  nodeName: nas2                  # l'ancienne config est sur le disque de nas2
+  restartPolicy: Never
+  containers:
+    - name: restore
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          f=$(ls -t /old/Backups/*/*.zip | head -1)
+          echo "Sauvegarde utilisée : $f"
+          # Base précédente + son journal SQLite (-wal/-shm) : à supprimer, sinon
+          # SQLite rejouerait l'ancien journal sur la base restaurée -> corruption.
+          rm -f /new/radarr.db /new/radarr.db-wal /new/radarr.db-shm /new/radarr.pid
+          unzip -o "$f" -d /new
+          # Les affiches ne sont pas dans les sauvegardes : on les recopie.
+          cp -a /old/MediaCover /new/
+          chown -R 911:100 /new
+          ls -la /new
+          echo RESTAURATION_OK
+      volumeMounts:
+        - { name: old, mountPath: /old, readOnly: true }
+        - { name: new, mountPath: /new }
+  volumes:
+    - name: old
+      hostPath: { path: /ssd1/container/radarr/config, type: Directory }
+    - name: new
+      persistentVolumeClaim: { claimName: radarr-config }

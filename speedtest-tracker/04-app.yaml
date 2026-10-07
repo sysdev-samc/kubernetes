@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-tracker
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: speedtest-tracker }
+  template:
+    metadata:
+      labels: { app: speedtest-tracker }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      containers:
+        - name: speedtest-tracker
+          image: lscr.io/linuxserver/speedtest-tracker:v1.14.7-ls166   # version figée = celle du Docker
+          env:
+            - { name: PUID, value: "911" }
+            - { name: PGID, value: "100" }
+            - { name: DB_CONNECTION, value: mariadb }
+            - { name: DB_HOST, value: speedtest-db }      # nom DNS interne du service MariaDB
+            - { name: DB_PORT, value: "3306" }
+            - { name: DB_DATABASE, value: speedtest_tracker }
+            - { name: DB_USERNAME, value: speedy }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: speedtest-tracker, key: DB_PASSWORD } }
+            - name: APP_KEY                              # clé de chiffrement : DOIT être la même qu'avant
+              valueFrom: { secretKeyRef: { name: speedtest-tracker, key: APP_KEY } }
+            - { name: APP_URL, value: "http://192.168.1.150:5080/" }
+            - { name: APP_TIMEZONE, value: Europe/Paris }
+            - { name: DISPLAY_TIMEZONE, value: Europe/Paris }
+            - { name: SPEEDTEST_SCHEDULE, value: "*/30 * * * *" }
+          ports:
+            - { name: http, containerPort: 80 }
+          readinessProbe:
+            httpGet: { path: /api/healthcheck, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /api/healthcheck, port: http }
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits:   { memory: 1Gi }
+          volumeMounts:
+            - { name: config, mountPath: /config }
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: speedtest-tracker-config }
+---
+# http://192.168.1.150:5080 (même port qu'avant ; le HTTPS 5081 auto-signé n'est pas repris)
+apiVersion: v1
+kind: Service
+metadata:
+  name: speedtest-tracker
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: speedtest-tracker }
+  ports:
+    - { name: http, port: 5080, targetPort: http }

@@ -1,0 +1,35 @@
+# Pod temporaire : restaure la dernière sauvegarde de sonarr (Docker) dans le volume Longhorn.
+# Utilisé deux fois : au démarrage du parallèle, puis à la bascule finale (sonarr k8s arrêté).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sonarr-migration
+  namespace: media
+spec:
+  nodeName: nas2
+  restartPolicy: Never
+  containers:
+    - name: restore
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          f=$(ls -t /old/Backups/*/*.zip | head -1)
+          echo "Sauvegarde utilisée : $f"
+          # Ancienne base + journal SQLite (-wal/-shm) supprimés, sinon corruption
+          rm -f /new/sonarr.db /new/sonarr.db-wal /new/sonarr.db-shm /new/sonarr.pid
+          unzip -o "$f" -d /new
+          cp -a /old/MediaCover /new/
+          chown -R 911:100 /new
+          ls -la /new
+          echo RESTAURATION_OK
+      volumeMounts:
+        - { name: old, mountPath: /old, readOnly: true }
+        - { name: new, mountPath: /new }
+  volumes:
+    - name: old
+      hostPath: { path: /ssd1/container/sonarr/config, type: Directory }
+    - name: new
+      persistentVolumeClaim: { claimName: sonarr-config }

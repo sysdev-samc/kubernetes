@@ -1,0 +1,16 @@
+# Expose sonarr sur l'IP partagée du cluster : http://192.168.1.150:8989
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: sonarr }
+  ports:
+    - { name: http, port: 8989, targetPort: http }

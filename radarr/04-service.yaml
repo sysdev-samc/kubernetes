@@ -1,0 +1,17 @@
+# Expose radarr sur l'IP partagée du cluster : http://192.168.1.150:7878
+# Tous les services utilisent la même IP + la même clé "cluster", chacun avec SON port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb      # géré par MetalLB, pas par ServiceLB de k3s (qui garde Traefik)
+  externalTrafficPolicy: Cluster  # obligatoire pour partager l'IP entre services
+  selector: { app: radarr }
+  ports:
+    - { name: http, port: 7878, targetPort: http }

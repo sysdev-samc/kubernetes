@@ -1,0 +1,13 @@
+# SECRETS : ne JAMAIS les versionner.
+# Ils restent uniquement sur le disque (droits 600) et sont injectés dans k8s
+# par les scripts 00-secret.sh.
+gluetun/
+*.env
+*.key
+*.crt
+*.pem
+
+# Divers
+*.log
+*.bak*
+*~

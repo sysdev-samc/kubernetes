@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                # jamais 2 sonarr en même temps sur la même base SQLite
+  selector:
+    matchLabels: { app: sonarr }
+  template:
+    metadata:
+      labels: { app: sonarr }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      containers:
+        - name: sonarr
+          image: lscr.io/linuxserver/sonarr:4.0.20.3014-ls326   # version figée = celle du Docker
+          env:
+            - { name: TZ,    value: Europe/Paris }
+            - { name: PUID,  value: "911" }
+            - { name: PGID,  value: "100" }
+            - { name: UMASK, value: "002" }
+          ports:
+            - { name: http, containerPort: 8989 }
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+              # Sinon la sonde arrive avec Host: <IP du pod>, refusée par "Allowed Hosts"
+              httpHeaders: [{ name: Host, value: localhost }]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+              httpHeaders: [{ name: Host, value: localhost }]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { memory: 1Gi }
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: tv, mountPath: /tv }
+            - { name: downloads, mountPath: /downloads }
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: sonarr-config }
+        # Séries et téléchargements : disque local de nas2 (non répliqué).
+        - name: tv
+          hostPath: { path: /volume1/cinema/parent/tvshow, type: DirectoryOrCreate }
+        - name: downloads
+          persistentVolumeClaim: { claimName: downloads }   # Longhorn RWX partagé (nas1 + nas2)
