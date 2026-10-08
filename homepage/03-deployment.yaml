@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: homepage }
+  template:
+    metadata:
+      labels: { app: homepage }
+    spec:
+      serviceAccountName: homepage        # droits de lecture sur le cluster (02-rbac.yaml)
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      containers:
+        - name: homepage
+          image: ghcr.io/gethomepage/homepage:v2.4.0    # version figée
+          env:
+            # Noms d'hôte acceptés (sécurité, comme "Allowed Hosts" de radarr)
+            - { name: HOMEPAGE_ALLOWED_HOSTS, value: "192.168.1.150" }
+          envFrom:
+            - secretRef: { name: homepage-env }        # HOMEPAGE_VAR_* : clés API (00-secret.sh)
+          ports:
+            - { name: http, containerPort: 3000 }
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+              httpHeaders: [{ name: Host, value: "localhost:3000" }]   # toujours autorisé par Homepage
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+              httpHeaders: [{ name: Host, value: "localhost:3000" }]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /app/config/settings.yaml,   subPath: settings.yaml }
+            - { name: config, mountPath: /app/config/services.yaml,   subPath: services.yaml }
+            - { name: config, mountPath: /app/config/widgets.yaml,    subPath: widgets.yaml }
+            - { name: config, mountPath: /app/config/kubernetes.yaml, subPath: kubernetes.yaml }
+            - { name: config, mountPath: /app/config/bookmarks.yaml,  subPath: bookmarks.yaml }
+            - { name: config, mountPath: /app/config/docker.yaml,     subPath: docker.yaml }
+            - { name: config, mountPath: /app/config/custom.css,      subPath: custom.css }
+            - { name: config, mountPath: /app/config/custom.js,       subPath: custom.js }
+            - { name: logs,   mountPath: /app/config/logs }
+      volumes:
+        - name: config
+          configMap: { name: homepage-config }
+        - name: logs
+          emptyDir: {}                     # sans état : rien à sauvegarder

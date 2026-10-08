@@ -47,8 +47,9 @@ spec:
           envFrom:
             - secretRef: { name: gluetun-env }
           env:
-            # Laisse entrer l'interface web / RPC de transmission
-            - { name: FIREWALL_INPUT_PORTS, value: "9091" }
+            # Laisse entrer l'interface web / RPC de transmission (9091)
+            # et le serveur de contrôle de gluetun (8000, lu par le widget Homepage)
+            - { name: FIREWALL_INPUT_PORTS, value: "9091,8000" }
             # Réseaux joignables HORS VPN : pods, services k8s et LAN (pour répondre aux clients)
             - { name: FIREWALL_OUTBOUND_SUBNETS, value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24" }
             - { name: HTTPPROXY, value: "off" }  # le proxy reste assuré par le gluetun Docker

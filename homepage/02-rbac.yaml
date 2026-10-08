@@ -1,0 +1,30 @@
+# Homepage a besoin de LIRE (jamais modifier) l'état des pods et des nœuds du cluster,
+# pour les pastilles vert/rouge et le widget "kubernetes".
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: homepage
+  namespace: media
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: homepage-lecture
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, pods, nodes]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: homepage-lecture
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: homepage-lecture }
+subjects:
+  - { kind: ServiceAccount, name: homepage, namespace: media }

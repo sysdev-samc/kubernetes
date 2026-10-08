@@ -1,0 +1,16 @@
+# La page d'accueil de ton réseau : http://192.168.1.150 (port 80 de l'IP partagée)
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: homepage }
+  ports:
+    - { name: http, port: 80, targetPort: http }

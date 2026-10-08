@@ -1,0 +1,14 @@
+# Serveur de contrôle du gluetun de transmission (port 8000) : donne l'IP de sortie du VPN.
+# Volontairement INTERNE au cluster (ClusterIP, pas d'IP 192.168.1.150) : en v3.39 ce serveur
+# n'a pas de mot de passe et permet aussi d'arrêter le VPN. Utilisé par Homepage :
+# http://transmission-vpn.media:8000
+apiVersion: v1
+kind: Service
+metadata:
+  name: transmission-vpn
+  namespace: media
+spec:
+  type: ClusterIP
+  selector: { app: transmission }
+  ports:
+    - { name: control, port: 8000, targetPort: 8000 }
