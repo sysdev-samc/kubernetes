@@ -1,0 +1,149 @@
+# Configuration de Homepage (https://gethomepage.dev), montée dans /app/config.
+# Les clés API ne sont PAS ici : elles viennent du Secret "homepage-env" (00-secret.sh)
+# et sont référencées par {{HOMEPAGE_VAR_...}}.
+# Après modification : bash /ssd1/kubernetes/homepage/deploy.sh
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: media
+data:
+  settings.yaml: |
+    title: NAS
+    language: fr
+    theme: dark
+    color: slate
+    headerStyle: boxed
+    statusStyle: dot
+    layout:
+      Médias:       { style: row, columns: 3 }
+      Maison:       { style: row, columns: 3 }
+      Réseau:       { style: row, columns: 3 }
+    providers:
+      longhorn:
+        url: http://longhorn-frontend.longhorn-system   # API Longhorn relayée par son interface
+
+  kubernetes.yaml: |
+    mode: cluster          # Homepage lit l'état des pods et des nœuds via l'API Kubernetes
+
+  widgets.yaml: |
+    - kubernetes:
+        cluster: { show: true, cpu: true, memory: true, showLabel: true, label: "cluster" }
+        nodes:   { show: true, cpu: true, memory: true, showLabel: true }
+    - longhorn:
+        expanded: true
+        total: true
+        labels: true
+        nodes: true
+    - datetime:
+        text_size: xl
+        format: { dateStyle: full, timeStyle: short, hour12: false }
+
+  services.yaml: |
+    - Médias:
+        - Seer:
+            icon: overseerr.png
+            href: http://192.168.1.150:5055
+            description: Demandes de films et séries
+            namespace: media
+            podSelector: app=seer
+            widget:
+              type: overseerr
+              url: http://seer.media:5055
+              key: "{{HOMEPAGE_VAR_SEER_KEY}}"
+        - Radarr:
+            icon: radarr.png
+            href: http://192.168.1.150:7878
+            description: Films
+            namespace: media
+            podSelector: app=radarr
+            widget:
+              type: radarr
+              url: http://192.168.1.150:7878     # .150 : autorisé par "Allowed Hosts" de radarr
+              key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
+        - Sonarr:
+            icon: sonarr.png
+            href: http://192.168.1.150:8989
+            description: Séries
+            namespace: media
+            podSelector: app=sonarr
+            widget:
+              type: sonarr
+              url: http://192.168.1.150:8989
+              key: "{{HOMEPAGE_VAR_SONARR_KEY}}"
+        - Transmission:
+            icon: transmission.png
+            href: http://192.168.1.150:9091
+            description: Téléchargements (VPN)
+            namespace: media
+            podSelector: app=transmission
+            widget:
+              type: transmission
+              url: http://transmission.media:9091
+        - Jackett:
+            icon: jackett.png
+            href: http://192.168.1.150:9117
+            description: Indexeurs (VPN)
+            namespace: media
+            podSelector: app=jackett
+            widget:
+              type: jackett
+              url: http://jackett.media:9117
+              password: "{{HOMEPAGE_VAR_JACKETT_PASSWORD}}"   # mot de passe admin de Jackett
+
+    - Maison:
+        - Home Assistant:
+            icon: home-assistant.png
+            href: http://192.168.1.2:8123
+            description: Domotique
+            siteMonitor: http://192.168.1.2:8123
+            widget:
+              type: homeassistant
+              url: http://192.168.1.2:8123
+              key: "{{HOMEPAGE_VAR_HA_TOKEN}}"
+        - Frigate:
+            icon: frigate.png
+            href: https://192.168.1.2:8971
+            description: Caméras
+            siteMonitor: http://192.168.1.2:5005/api/version
+            widget:
+              type: frigate
+              url: http://192.168.1.2:5005
+
+    - Réseau:
+        - Speedtest:
+            icon: speedtest-tracker.png
+            href: http://192.168.1.150:5080
+            description: Débit Internet
+            namespace: media
+            podSelector: app=speedtest-tracker
+            widget:
+              type: speedtest
+              url: http://speedtest-tracker.media:5080
+              version: 2
+              key: "{{HOMEPAGE_VAR_SPEEDTEST_KEY}}"
+        - IP de sortie VPN:
+            icon: gluetun.png
+            description: Adresse vue par les trackers (transmission)
+            widget:
+              type: gluetun
+              url: http://transmission-vpn.media:8000   # serveur de contrôle du gluetun de transmission
+              fields: ["public_ip", "region", "country"]
+        - IP publique:
+            icon: mdi-earth
+            description: Adresse de la box (hors VPN)
+            widget:
+              type: customapi
+              url: https://ipinfo.io/json
+              refreshInterval: 300000          # toutes les 5 min (limite gratuite ipinfo : 50 000/mois)
+              mappings:
+                - { field: ip,   label: IP }
+                - { field: city, label: Ville }
+                - { field: org,  label: Opérateur }
+
+  bookmarks.yaml: |
+    []
+  docker.yaml: |
+    {}
+  custom.css: ""
+  custom.js: ""
