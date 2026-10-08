@@ -32,7 +32,7 @@ spec:
         - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
       containers:
         - name: radarr
-          image: lscr.io/linuxserver/radarr:6.4.4.10685-ls318   # version figée = celle qui tourne aujourd'hui
+          image: lscr.io/linuxserver/radarr:6.4.4.10685-ls319   # version figée = celle qui tourne aujourd'hui
           env:
             - { name: TZ,    value: Europe/Paris }
             - { name: PUID,  value: "911" }

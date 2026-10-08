@@ -10,4 +10,6 @@ gluetun/
 # Divers
 *.log
 *.bak*
+*.sav
+manuel.env*
 *~
