@@ -79,7 +79,7 @@ spec:
             - { name: config, mountPath: /config }
       containers:
         - name: jackett
-          image: lscr.io/linuxserver/jackett:v0.24.2756-ls46   # version de départ (voir AUTO_UPDATE)
+          image: lscr.io/linuxserver/jackett:v0.24.2806-ls52   # version de départ (voir AUTO_UPDATE)
           env:
             - { name: TZ,   value: Europe/Paris }
             - { name: PUID, value: "911" }
