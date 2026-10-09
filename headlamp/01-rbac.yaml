@@ -1,0 +1,78 @@
+# Deux comptes de service (identités Kubernetes) :
+#  - "headlamp"     : celui sous lequel tourne le programme. N'a AUCUN droit : Headlamp
+#                     agit toujours avec le jeton de la personne connectée.
+#  - "headlamp-moi" : le compte avec lequel TU te connectes (jeton : voir deploy.sh).
+#      * voit tout le cluster (nœuds, pods, logs, événements, Longhorn…), SAUF les Secrets
+#        des autres namespaces ;
+#      * peut agir (redémarrer, modifier, supprimer, voir les Secrets) UNIQUEMENT dans "media".
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp
+  namespace: media
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp-moi
+  namespace: media
+---
+# Lecture de tous les namespaces (rôle "view" fourni par Kubernetes : sans les Secrets)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-moi-lecture
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: view }
+subjects:
+  - { kind: ServiceAccount, name: headlamp-moi, namespace: media }
+---
+# Lecture des objets "globaux" que "view" ne couvre pas : nœuds, disques, Longhorn, mesures
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: headlamp-lecture-cluster
+rules:
+  - apiGroups: [""]
+    resources: [nodes, namespaces, persistentvolumes]
+    verbs: [get, list, watch]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses, csidrivers, csinodes, volumeattachments]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  - apiGroups: [longhorn.io, metallb.io]
+    resources: ["*"]
+    verbs: [get, list, watch]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-moi-lecture-cluster
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: headlamp-lecture-cluster }
+subjects:
+  - { kind: ServiceAccount, name: headlamp-moi, namespace: media }
+---
+# Gestion du namespace "media" (rôle "edit" fourni par Kubernetes)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: headlamp-moi-gestion
+  namespace: media
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: edit }
+subjects:
+  - { kind: ServiceAccount, name: headlamp-moi, namespace: media }
+---
+# Jeton permanent du compte headlamp-moi (Kubernetes le remplit automatiquement).
+# Pour le révoquer : kubectl -n media delete secret headlamp-moi-jeton, puis relancer deploy.sh.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headlamp-moi-jeton
+  namespace: media
+  annotations:
+    kubernetes.io/service-account.name: headlamp-moi
+type: kubernetes.io/service-account-token
