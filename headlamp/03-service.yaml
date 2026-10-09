@@ -1,0 +1,16 @@
+# Headlamp : http://192.168.1.150:4466 (IP partagée MetalLB)
+apiVersion: v1
+kind: Service
+metadata:
+  name: headlamp
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: headlamp }
+  ports:
+    - { name: http, port: 4466, targetPort: http }

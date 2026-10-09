@@ -1,0 +1,53 @@
+# Headlamp : interface web de Kubernetes (https://headlamp.dev). Sans état, rien à sauvegarder.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headlamp
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: headlamp }
+  template:
+    metadata:
+      labels: { app: headlamp }
+    spec:
+      serviceAccountName: headlamp
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas1, nas2] }
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - { key: kubernetes.io/hostname, operator: In, values: [nas2] }
+      tolerations:
+        - { key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+        - { key: node.kubernetes.io/not-ready,   operator: Exists, effect: NoExecute, tolerationSeconds: 30 }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+      containers:
+        - name: headlamp
+          image: ghcr.io/headlamp-k8s/headlamp:v0.45.0   # version figée
+          args:
+            - "-in-cluster"                        # se connecte au cluster dans lequel il tourne
+            - "-in-cluster-context-name=k3s"       # nom affiché du cluster
+            - "-plugins-dir=/headlamp/plugins"
+          ports:
+            - { name: http, containerPort: 4466 }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits:   { memory: 256Mi }
