@@ -1,5 +1,7 @@
 #!/bin/bash
-# Installe la supervision SMART (smartd -> Telegram) sur un nœud : nas1, nas2 ou nas3.
+# Installe la supervision et l'entretien des disques sur un nœud : nas1, nas2 ou nas3.
+#   - smartd -> Telegram (autotests à 11 h)
+#   - TRIM hebdomadaire (fstrim.timer) et e2scrub hebdomadaire des volumes LVM (erreurs -> Telegram)
 # À lancer sur nas2 (là où sont le dépôt et reseau/telegram.env) :
 #   bash /ssd1/kubernetes/disques/installer-smartd.sh nas3
 #   bash /ssd1/kubernetes/disques/installer-smartd.sh nas3 --test   # + envoie un message de test par disque
@@ -39,6 +41,14 @@ run 'set -e
   sleep 3
   echo "smartd : $(systemctl is-active smartmontools 2>/dev/null || systemctl is-active smartd)"
   echo "autotests planifiés :"; smartd -q showtests -c /etc/smartd.conf 2>/dev/null | grep -E "Device:.*will do test" | sort -u -k2,2 | head -6 | sed "s/^/  /"'
+
+echo "=== $NODE : TRIM et e2scrub"
+run 'mkdir -p /etc/systemd/system/e2scrub_fail@.service.d'
+put /etc/systemd/system/e2scrub_fail@.service.d/telegram.conf < "$ICI/e2scrub_fail-telegram.conf"
+run 'set -e
+  sed -i "s|^# periodic_e2scrub=1\$|periodic_e2scrub=1|" /etc/e2scrub.conf 2>/dev/null || true
+  systemctl daemon-reload; systemctl enable -q --now fstrim.timer e2scrub_all.timer
+  echo "fstrim.timer : $(systemctl is-enabled fstrim.timer) | e2scrub : $(grep -c "^periodic_e2scrub=1" /etc/e2scrub.conf 2>/dev/null) | volumes LVM : $(lvs --noheadings 2>/dev/null | wc -l)"'
 
 if [ "$TEST" = --test ]; then
   echo "=== $NODE : message de test (1 par disque)"

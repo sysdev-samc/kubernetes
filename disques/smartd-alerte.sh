@@ -22,6 +22,7 @@ case "$SMARTD_FAILTYPE" in
   Temperature)     titre="🌡️ Disque trop chaud" ;;
   FailedOpenDevice|FailedReadSmartData|FailedHealthCheck|FailedReadSmartErrorLog|FailedReadSmartSelfTestLog)
                    titre="⚠️ Disque : SMART illisible (disque débranché ou en panne ?)" ;;
+  Fsck)            titre="🔴 Système de fichiers endommagé (e2scrub)" ;;
   *)               titre="⚠️ Disque : $SMARTD_FAILTYPE" ;;
 esac
 texte="$titre — $(hostname -s)
