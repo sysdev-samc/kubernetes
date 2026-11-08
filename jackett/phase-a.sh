@@ -1,4 +1,6 @@
 #!/bin/bash
+# OBSOLÈTE depuis le 08/11/2026 : jackett tourne dans le pod transmission (transmission/03-deployment.yaml).
+echo "OBSOLÈTE : jackett est dans le pod transmission (voir transmission/03-deployment.yaml)"; exit 1
 # PHASE A : pod jackett (gluetun + jackett + flaresolverr) dans k8s, EN PARALLÈLE des Docker.
 # Deux jackett peuvent tourner en même temps sans risque : ils ne font que répondre aux recherches.
 # Usage : bash /ssd1/kubernetes/jackett/phase-a.sh

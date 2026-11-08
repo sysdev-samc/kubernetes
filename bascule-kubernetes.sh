@@ -99,8 +99,8 @@ tests() {
   check jackett         "$(curl -s -m5 -o /dev/null -w '%{http_code}' http://$VIP:9117/)" 301
   check seer            "$(curl -s -m5 -o /dev/null -w '%{http_code}' http://$VIP:5055/api/v1/settings/public)" 200
   check speedtest       "$(curl -s -m5 -o /dev/null -w '%{http_code}' http://$VIP:5080/api/healthcheck)" 200
-  for s in transmission jackett; do
-    c=$(kubectl -n $NS exec deploy/$s -c $s -- curl -s -m8 https://ipinfo.io/country 2>/dev/null || true)
+  for s in transmission jackett joal; do      # tous dans le pod transmission, derrière son gluetun
+    c=$(kubectl -n $NS exec deploy/transmission -c $s -- curl -s -m8 https://ipinfo.io/country 2>/dev/null || true)
     if [ -n "$c" ] && [ "$c" != "$home" ]; then printf '  OK  %-22s %s (maison %s)\n' "VPN $s" "$c" "$home"
     else printf '  KO  %-22s %s (maison %s)\n' "VPN $s" "${c:-rien}" "$home"; FAILS=$((FAILS+1)); fi
   done

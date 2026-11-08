@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ROTATION HEBDOMADAIRE DU PAYS DE SORTIE CYBERGHOST (gluetun de transmission, jackett et joal).
+# ROTATION HEBDOMADAIRE DU PAYS DE SORTIE CYBERGHOST (gluetun du pod transmission, partagé avec joal et jackett).
 #   1. passe SERVER_COUNTRIES de /ssd1/kubernetes/gluetun/vpn.env au pays suivant de ROTATION
 #      (copie de sauvegarde vpn.env.avant-rotation)
 #   2. lance vpn-appliquer.sh : Secrets + redémarrage des pods (~1 min de coupure chacun)
@@ -17,7 +17,7 @@ ICI = os.path.dirname(os.path.abspath(__file__))
 VPN_ENV = os.path.join(ICI, "gluetun", "vpn.env")
 APPLIQUER = os.path.join(ICI, "vpn-appliquer.sh")
 CRON = "/etc/cron.d/vpn-changer-pays"
-SERVICES = ["transmission", "jackett", "joal"]
+SERVICES = ["transmission"]       # seul gluetun : joal et jackett sont dans le pod transmission
 # Hors d'Europe uniquement (choix de l'utilisateur, 17/10/2026). Noms tels que gluetun les attend.
 ROTATION = ["Canada", "Morocco", "United Arab Emirates", "Singapore"]
 # Pays refusés, même demandés à la main : toute l'Europe (liste des pays européens de CyberGhost)

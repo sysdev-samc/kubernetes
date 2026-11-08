@@ -1,4 +1,5 @@
 # Interface web de joal : http://192.168.1.150:12345/<JOAL_UI_PREFIX>/ui/ (IP partagée MetalLB)
+# joal tourne dans le pod de transmission (transmission/03-deployment.yaml), derrière son gluetun.
 apiVersion: v1
 kind: Service
 metadata:
@@ -11,6 +12,6 @@ spec:
   type: LoadBalancer
   loadBalancerClass: metallb
   externalTrafficPolicy: Cluster
-  selector: { app: joal }
+  selector: { app: transmission }
   ports:
-    - { name: http, port: 12345, targetPort: http }
+    - { name: http, port: 12345, targetPort: joal }

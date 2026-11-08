@@ -1,4 +1,6 @@
 #!/bin/bash
+# OBSOLÈTE depuis le 08/11/2026 : jackett tourne dans le pod transmission (transmission/03-deployment.yaml).
+echo "OBSOLÈTE : jackett est dans le pod transmission (voir transmission/03-deployment.yaml)"; exit 1
 # Passe jackett + flaresolverr derrière le VPN : un seul pod gluetun + jackett + flaresolverr.
 # Le service "jackett" (jackett:9117 / 192.168.1.150:9117) ne change pas : radarr et sonarr
 # ne voient qu'un redémarrage d'environ 1 min.

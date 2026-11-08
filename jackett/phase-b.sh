@@ -1,4 +1,6 @@
 #!/bin/bash
+# OBSOLÈTE depuis le 08/11/2026 : jackett tourne dans le pod transmission (transmission/03-deployment.yaml).
+echo "OBSOLÈTE : jackett est dans le pod transmission (voir transmission/03-deployment.yaml)"; exit 1
 # PHASE B : arrêt définitif de jackett et flaresolverr Docker.
 # AVANT de lancer : dans radarr ET sonarr, Settings > Indexers > ton indexeur Jackett :
 #   remplacer "http://192.168.1.2:9117" par "http://jackett:9117" dans l'URL -> Test -> Save

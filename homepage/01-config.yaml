@@ -86,7 +86,7 @@ data:
             href: http://192.168.1.150:9117
             description: Indexeurs (VPN)
             namespace: media
-            podSelector: app=jackett
+            podSelector: app=transmission   # jackett tourne dans le pod transmission
             widget:
               type: jackett
               url: http://jackett.media:9117
@@ -175,7 +175,7 @@ data:
                 - { field: org,  label: Opérateur }
         - IP de sortie VPN (CyberGhost):
             icon: gluetun.png
-            description: Sortie vers Internet des torrents (transmission, jackett)
+            description: Sortie vers Internet des torrents (transmission, joal, jackett)
             widget:
               type: gluetun
               url: http://transmission-vpn.media:8000   # serveur de contrôle du gluetun de transmission

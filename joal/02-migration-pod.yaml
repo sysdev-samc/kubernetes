@@ -1,5 +1,5 @@
 # Copie /ssd1/container/joal/data (ancien Docker, disque de nas2) dans le volume Longhorn.
-# Lancé par deploy.sh uniquement si le volume est vide. À supprimer une fois terminé.
+# Lancé par deploy.sh uniquement à la création du volume. À supprimer une fois terminé.
 apiVersion: v1
 kind: Pod
 metadata:

@@ -48,8 +48,9 @@ spec:
             - secretRef: { name: gluetun-env }
           env:
             # Laisse entrer l'interface web / RPC de transmission (9091), le serveur de contrôle
-            # de gluetun (8000, lu par le widget Homepage) et le proxy HTTP (8888)
-            - { name: FIREWALL_INPUT_PORTS, value: "9091,8000,8888" }
+            # de gluetun (8000, lu par le widget Homepage), le proxy HTTP (8888), joal (12345)
+            # et jackett (9117)
+            - { name: FIREWALL_INPUT_PORTS, value: "9091,8000,8888,12345,9117" }
             # Réseaux joignables HORS VPN : pods, services k8s et LAN (pour répondre aux clients)
             - { name: FIREWALL_OUTBOUND_SUBNETS, value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24" }
             # Proxy HTTP sortant par le VPN : http://192.168.1.150:8888 (06-service-proxy.yaml).
@@ -72,6 +73,17 @@ spec:
             - { name: vpn, mountPath: /gluetun/client.crt, subPath: client.crt, readOnly: true }
             - { name: vpn, mountPath: /gluetun/client.key, subPath: client.key, readOnly: true }
             - { name: tun, mountPath: /dev/net/tun }
+        # Avant jackett : flaresolverr est dans le même pod -> localhost
+        - name: flaresolverr-url
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              sed -i -E 's#"FlareSolverrUrl": *"[^"]*"#"FlareSolverrUrl": "http://localhost:8191/v1"#' /config/Jackett/ServerConfig.json
+              grep -o '"FlareSolverrUrl": *"[^"]*"' /config/Jackett/ServerConfig.json
+          volumeMounts:
+            - { name: jackett-config, mountPath: /config }
       containers:
         - name: transmission
           image: lscr.io/linuxserver/transmission:4.1.3-r0-ls363   # version figée = celle du Docker
@@ -97,6 +109,88 @@ spec:
             - { name: config, mountPath: /config }
             - { name: downloads, mountPath: /downloads }
             - { name: watch, mountPath: /watch }
+        # joal (et jackett plus bas) partagent le gluetun de transmission : UN SEUL tunnel CyberGhost.
+        # Avec le même compte, deux tunnels sur le même serveur se coupent mutuellement, et
+        # CyberGhost n'a que 1-2 serveurs par pays (incident du 08/11/2026).
+        # Interface : http://192.168.1.150:12345/<JOAL_UI_PREFIX>/ui/ (joal/04-service.yaml)
+        - name: joal
+          image: anthonyraymond/joal:2.1.37        # version figée (= "latest" du Docker, 12/2025)
+          # Chemin et "secret token" de l'interface : Secret "joal" (voir joal/00-secret.sh), jamais dans git
+          envFrom:
+            - secretRef: { name: joal }
+          env:
+            - { name: TZ, value: Europe/Paris }
+          args:
+            - --joal-conf=/data
+            - --spring.main.web-environment=true
+            - --server.port=12345
+            - --joal.ui.path.prefix=$(JOAL_UI_PREFIX)
+            - --joal.ui.secret-token=$(JOAL_UI_SECRET_TOKEN)
+          ports:
+            - { name: joal, containerPort: 12345 }
+          readinessProbe:
+            tcpSocket: { port: joal }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: joal }
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 192Mi }
+            limits:   { memory: 512Mi }
+          volumeMounts:
+            - { name: joal-data, mountPath: /data }
+        # jackett + flaresolverr : même raison que joal, un seul tunnel CyberGhost pour tout.
+        # radarr / sonarr : http://jackett:9117 ; toi : http://192.168.1.150:9117 (jackett/04-service.yaml)
+        - name: jackett
+          image: lscr.io/linuxserver/jackett:v0.24.2806-ls52   # version de départ (voir AUTO_UPDATE)
+          env:
+            - { name: TZ,   value: Europe/Paris }
+            - { name: PUID, value: "911" }
+            - { name: PGID, value: "100" }
+            # Exception à la règle "version figée" : jackett se met à jour lui-même
+            # (les définitions des sites changent souvent). Comme avant dans Docker.
+            - { name: AUTO_UPDATE, value: "true" }
+          ports:
+            - { name: jackett, containerPort: 9117 }
+          readinessProbe:
+            tcpSocket: { port: jackett }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: jackett }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { memory: 512Mi }
+          volumeMounts:
+            - { name: jackett-config, mountPath: /config }
+        - name: flaresolverr
+          image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
+          env:
+            - { name: TZ, value: Europe/Paris }
+            - { name: LOG_LEVEL, value: info }
+          # Pas de "ports:" exposé : seul jackett l'utilise, via localhost:8191
+          # Sondes exécutées DANS le conteneur (localhost) : le pare-feu de gluetun
+          # bloquerait une sonde venant de l'extérieur sur le port 8191.
+          readinessProbe:
+            exec: { command: [python3, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8191/health', timeout=5)"] }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            exec: { command: [python3, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8191/health', timeout=5)"] }
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { memory: 1Gi }               # Chromium peut être gourmand
       volumes:
         - name: config
           persistentVolumeClaim: { claimName: transmission-config }
@@ -106,6 +200,10 @@ spec:
           hostPath: { path: /volume1/downloads, type: DirectoryOrCreate }
         - name: watch
           hostPath: { path: /volume1/downloads/watch, type: DirectoryOrCreate }
+        - name: joal-data
+          persistentVolumeClaim: { claimName: joal-data }   # joal/01-pvc.yaml
+        - name: jackett-config
+          persistentVolumeClaim: { claimName: jackett-config }   # jackett/01-pvc.yaml
         - name: gluetun-data
           emptyDir: {}
         - name: vpn

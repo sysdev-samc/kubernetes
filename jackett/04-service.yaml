@@ -13,6 +13,6 @@ spec:
   type: LoadBalancer
   loadBalancerClass: metallb
   externalTrafficPolicy: Cluster
-  selector: { app: jackett }
+  selector: { app: transmission }   # jackett tourne dans le pod transmission (un seul tunnel VPN)
   ports:
-    - { name: http, port: 9117, targetPort: http }
+    - { name: http, port: 9117, targetPort: jackett }
