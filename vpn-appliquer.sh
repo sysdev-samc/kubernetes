@@ -2,7 +2,7 @@
 # Applique le contenu de /ssd1/kubernetes/gluetun/vpn.env à tous les gluetun.
 # À lancer après CHAQUE modification de vpn.env (fournisseur, pays, identifiants...).
 #   1. met à jour les Secrets gluetun-env / gluetun-certs
-#   2. redémarre les pods k8s qui ont un gluetun (transmission, jackett) : ~1 min de coupure chacun
+#   2. redémarre les pods k8s qui ont un gluetun (transmission, jackett, joal) : ~1 min de coupure chacun
 # Le gluetun Docker (/ssd1/container/gluetun) n'est PAS concerné : il garde sa propre compose.
 # Usage : bash /ssd1/kubernetes/vpn-appliquer.sh
 set -e
@@ -13,7 +13,7 @@ echo "=== 1. Secrets"
 bash "$K8S/transmission/00-secret.sh"
 
 echo; echo "=== 2. Pods k8s avec gluetun"
-for app in transmission jackett; do
+for app in transmission jackett joal; do
   if ! grep -q 'name: gluetun$' "$K8S/$app/03-deployment.yaml"; then continue; fi
   if [ "$app" = jackett ] && ! kubectl -n media get deploy jackett -o jsonpath='{.spec.template.spec.initContainers[*].name}' | grep -qw gluetun; then
     echo "jackett : pas encore passé derrière le VPN -> ce sera fait par jackett/passage-vpn.sh"; continue

@@ -1,0 +1,12 @@
+# Données de joal (config.json, clients, torrents) : 2 répliques Longhorn (nas1 + nas2)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: joal-data
+  namespace: media
+spec:
+  storageClassName: longhorn
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi

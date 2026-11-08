@@ -1,0 +1,16 @@
+# Interface web de joal : http://192.168.1.150:12345/<JOAL_UI_PREFIX>/ui/ (IP partagée MetalLB)
+apiVersion: v1
+kind: Service
+metadata:
+  name: joal
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: joal }
+  ports:
+    - { name: http, port: 12345, targetPort: http }
