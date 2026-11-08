@@ -13,3 +13,13 @@ gluetun/
 *.sav
 manuel.env*
 *~
+
+# Jetons de connexion
+jeton.txt
+
+# Python
+__pycache__/
+*.pyc
+
+# Cache et configuration kubectl (peut contenir des identifiants du cluster)
+.kube/
