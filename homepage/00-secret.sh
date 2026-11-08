@@ -5,6 +5,7 @@
 #      HOMEPAGE_VAR_HA_TOKEN        Home Assistant : Profil > Sécurité > Jetons d'accès longue durée
 #      HOMEPAGE_VAR_SPEEDTEST_KEY   Speedtest Tracker : Paramètres > API Tokens (droit de lecture)
 #      HOMEPAGE_VAR_JACKETT_PASSWORD   mot de passe administrateur de Jackett
+#      HOMEPAGE_VAR_NTOPNG_TOKEN    ntopng : Paramètres > Utilisateurs > crayon de admin > Auth Token
 set -e -o pipefail
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 DIR=/ssd1/kubernetes/homepage
@@ -13,7 +14,7 @@ MANUEL=$DIR/manuel.env          # ignoré par git (*.env), droits 600
 if [ ! -f "$MANUEL" ]; then
   ( umask 077; printf '%s\n' \
     "# Clés à créer dans les interfaces (une par ligne, sans guillemets), puis relancer deploy.sh" \
-    "HOMEPAGE_VAR_HA_TOKEN=" "HOMEPAGE_VAR_SPEEDTEST_KEY=" "HOMEPAGE_VAR_JACKETT_PASSWORD=" > "$MANUEL" )
+    "HOMEPAGE_VAR_HA_TOKEN=" "HOMEPAGE_VAR_SPEEDTEST_KEY=" "HOMEPAGE_VAR_JACKETT_PASSWORD=" "HOMEPAGE_VAR_NTOPNG_TOKEN=" > "$MANUEL" )
   echo "Créé : $MANUEL (à compléter)"
 fi
 chmod 600 "$MANUEL"

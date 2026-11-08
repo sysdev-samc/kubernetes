@@ -64,8 +64,16 @@ spec:
             - { name: config, mountPath: /app/config/custom.css,      subPath: custom.css }
             - { name: config, mountPath: /app/config/custom.js,       subPath: custom.js }
             - { name: logs,   mountPath: /app/config/logs }
+            # Top des envois vers Internet (reseau/top-sortants.py --homepage), servi en
+            # http://localhost:3000/rapports/{top-sortants,securite-reseau}.json ; mis à jour sans redémarrer le pod
+            - { name: rapports, mountPath: /app/public/rapports, readOnly: true }
       volumes:
         - name: config
           configMap: { name: homepage-config }
         - name: logs
           emptyDir: {}                     # sans état : rien à sauvegarder
+        - name: rapports
+          projected:                       # optional : Homepage démarre même sans rapport
+            sources:
+              - configMap: { name: top-sortants, optional: true }      # reseau/top-sortants.py
+              - configMap: { name: securite-reseau, optional: true }   # reseau/surveillance.py

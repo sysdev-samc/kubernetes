@@ -19,6 +19,7 @@ data:
       Médias:       { style: row, columns: 3 }
       Maison:       { style: row, columns: 3 }
       Réseau:       { style: row, columns: 3 }
+      Sécurité:     { style: row, columns: 2 }
     providers:
       longhorn:
         url: http://longhorn-frontend.longhorn-system   # API Longhorn relayée par son interface
@@ -90,6 +91,11 @@ data:
               type: jackett
               url: http://jackett.media:9117
               password: "{{HOMEPAGE_VAR_JACKETT_PASSWORD}}"   # mot de passe admin de Jackett
+        - PiGallery2:
+            icon: pigallery2.png
+            href: http://192.168.1.2:8096
+            description: Galerie photos (nas2)
+            siteMonitor: http://192.168.1.2:8096   # pas de widget PiGallery2 officiel : simple lien + état
 
     - Maison:
         - Home Assistant:
@@ -109,8 +115,30 @@ data:
             widget:
               type: frigate
               url: http://192.168.1.2:5005
+        - Headlamp:
+            icon: headlamp.png
+            href: http://192.168.1.150:4466
+            description: Gestion du cluster Kubernetes
+            namespace: media
+            podSelector: app=headlamp
 
     - Réseau:
+        - ntopng:
+            icon: ntopng.png
+            href: http://192.168.1.2:3000
+            description: Trafic du réseau (Docker sur nas2)
+            siteMonitor: http://192.168.1.2:3000/lua/login.lua
+            widget:
+              type: customapi           # pas de widget ntopng officiel : on lit son API REST
+              url: http://192.168.1.2:3000/lua/rest/v2/get/interface/data.lua?ifid=0
+              refreshInterval: 10000    # toutes les 10 s
+              headers:
+                Authorization: "Token {{HOMEPAGE_VAR_NTOPNG_TOKEN}}"
+              mappings:
+                - { field: { rsp: throughput_bps }, label: Débit,    format: bitrate }
+                - { field: { rsp: num_devices },    label: Appareils, format: number }   # adresses MAC vues sur le LAN
+                - { field: { rsp: num_flows },      label: Flux,     format: number }
+                - { field: { rsp: engaged_alerts }, label: Alertes,  format: number }
         - Speedtest:
             icon: speedtest-tracker.png
             href: http://192.168.1.150:5080
@@ -122,13 +150,18 @@ data:
               url: http://speedtest-tracker.media:5080
               version: 2
               key: "{{HOMEPAGE_VAR_SPEEDTEST_KEY}}"
-        - IP de sortie VPN:
-            icon: gluetun.png
-            description: Adresse vue par les trackers (transmission)
+        - VPN d'accès (Tailscale):
+            icon: tailscale.png
+            description: Pour entrer dans le réseau maison depuis l'extérieur
             widget:
-              type: gluetun
-              url: http://transmission-vpn.media:8000   # serveur de contrôle du gluetun de transmission
-              fields: ["public_ip", "region", "country"]
+              type: customapi
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              refreshInterval: 300000
+              display: dynamic-list
+              mappings:
+                items: tailscale
+                name: nom
+                label: texte
         - IP publique:
             icon: mdi-earth
             description: Adresse de la box (hors VPN)
@@ -140,6 +173,63 @@ data:
                 - { field: ip,   label: IP }
                 - { field: city, label: Ville }
                 - { field: org,  label: Opérateur }
+        - IP de sortie VPN (CyberGhost):
+            icon: gluetun.png
+            description: Sortie vers Internet des torrents (transmission, jackett)
+            widget:
+              type: gluetun
+              url: http://transmission-vpn.media:8000   # serveur de contrôle du gluetun de transmission
+              fields: ["public_ip", "region", "country"]
+
+    - Sécurité:
+        - Alertes sécurité:
+            icon: mdi-shield-alert
+            description: Surveillance du réseau toutes les 5 min (alertes aussi sur l'iPhone)
+            widget:
+              type: customapi
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              refreshInterval: 300000
+              display: dynamic-list
+              mappings:
+                items: alertes
+                name: nom
+                label: texte
+        - Top envois:
+            icon: mdi-upload-network
+            description: Ce qui part vers Internet aujourd'hui (mis à jour chaque heure)
+            widget:
+              type: customapi
+              url: http://localhost:3000/rapports/top-sortants.json   # fichier produit par reseau/top-sortants.py
+              refreshInterval: 300000
+              display: dynamic-list
+              mappings:
+                items: top
+                name: nom
+                label: texte
+        - Top pays:
+            icon: mdi-earth
+            description: Échanges avec Internet aujourd'hui, par pays
+            widget:
+              type: customapi
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              refreshInterval: 300000
+              display: dynamic-list
+              mappings:
+                items: pays
+                name: nom
+                label: texte
+        - Top sites:
+            icon: mdi-web
+            description: Serveurs les plus utilisés aujourd'hui
+            widget:
+              type: customapi
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              refreshInterval: 300000
+              display: dynamic-list
+              mappings:
+                items: sites
+                name: nom
+                label: texte
 
   bookmarks.yaml: |
     []
