@@ -155,7 +155,7 @@ data:
             description: Pour entrer dans le réseau maison depuis l'extérieur
             widget:
               type: customapi
-              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par /ssd1/scripts/reseau/surveillance.py
               refreshInterval: 300000
               display: dynamic-list
               mappings:
@@ -187,7 +187,7 @@ data:
             description: Surveillance du réseau toutes les 5 min (alertes aussi sur l'iPhone)
             widget:
               type: customapi
-              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par /ssd1/scripts/reseau/surveillance.py
               refreshInterval: 300000
               display: dynamic-list
               mappings:
@@ -199,7 +199,7 @@ data:
             description: Ce qui part vers Internet aujourd'hui (mis à jour chaque heure)
             widget:
               type: customapi
-              url: http://localhost:3000/rapports/top-sortants.json   # fichier produit par reseau/top-sortants.py
+              url: http://localhost:3000/rapports/top-sortants.json   # fichier produit par /ssd1/scripts/reseau/top-sortants.py
               refreshInterval: 300000
               display: dynamic-list
               mappings:
@@ -211,7 +211,7 @@ data:
             description: Échanges avec Internet aujourd'hui, par pays
             widget:
               type: customapi
-              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par /ssd1/scripts/reseau/surveillance.py
               refreshInterval: 300000
               display: dynamic-list
               mappings:
@@ -223,7 +223,7 @@ data:
             description: Serveurs les plus utilisés aujourd'hui
             widget:
               type: customapi
-              url: http://localhost:3000/rapports/securite-reseau.json   # produit par reseau/surveillance.py
+              url: http://localhost:3000/rapports/securite-reseau.json   # produit par /ssd1/scripts/reseau/surveillance.py
               refreshInterval: 300000
               display: dynamic-list
               mappings:
@@ -235,7 +235,7 @@ data:
             description: SMART des disques des 3 NAS (mis à jour chaque heure ; alertes sur Telegram)
             widget:
               type: customapi
-              url: http://localhost:3000/rapports/disques.json   # produit par disques/disques.py
+              url: http://localhost:3000/rapports/disques.json   # produit par /ssd1/scripts/disques/disques.py
               refreshInterval: 300000
               display: dynamic-list
               mappings:

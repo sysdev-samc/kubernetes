@@ -99,7 +99,7 @@ def main():
         lignes.append(f"⚠️ problème : voir /var/log/vpn-changer-pays.log ; retour arrière possible : "
                       f"python3 {os.path.abspath(__file__)} {avant_pays}")
     print("\n".join(lignes))
-    spec = importlib.util.spec_from_file_location("sv", os.path.join(ICI, "reseau", "surveillance.py"))
+    spec = importlib.util.spec_from_file_location("sv", "/ssd1/scripts/reseau/surveillance.py")
     sv = importlib.util.module_from_spec(spec); spec.loader.exec_module(sv)
     print("Notification :", sv.notifier("🔄 Changement de pays VPN (CyberGhost)", lignes))
 
