@@ -45,7 +45,7 @@ spec:
             - { name: APP_URL, value: "http://192.168.1.150:5080/" }
             - { name: APP_TIMEZONE, value: Europe/Paris }
             - { name: DISPLAY_TIMEZONE, value: Europe/Paris }
-            - { name: SPEEDTEST_SCHEDULE, value: "*/30 * * * *" }
+            - { name: SPEEDTEST_SCHEDULE, value: "0 */2 * * *" }
           ports:
             - { name: http, containerPort: 80 }
           readinessProbe:
