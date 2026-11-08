@@ -1,0 +1,18 @@
+# Proxy HTTP du gluetun de transmission : tout ce qui passe par lui sort par le VPN.
+# Pour toi (navigateur, autres machines du LAN) : http://192.168.1.150:8888 (IP partagée MetalLB)
+# Pas de mot de passe (comme l'ancien gluetun Docker) : à ne JAMAIS exposer hors du LAN.
+apiVersion: v1
+kind: Service
+metadata:
+  name: transmission-proxy
+  namespace: media
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.1.150
+    metallb.io/allow-shared-ip: cluster
+spec:
+  type: LoadBalancer
+  loadBalancerClass: metallb
+  externalTrafficPolicy: Cluster
+  selector: { app: transmission }
+  ports:
+    - { name: proxy, port: 8888, targetPort: proxy }
