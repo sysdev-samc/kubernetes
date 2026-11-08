@@ -10,4 +10,4 @@ spec:
   resources:
     requests:
       storage: 2Gi
-# /downloads n'est plus sur Longhorn : hostPath /volume1/downloads (voir phase-c-hostpath.sh).
+# /downloads n'est plus sur Longhorn : hostPath /volume1/downloads (voir 03-deployment.yaml).

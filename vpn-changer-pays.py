@@ -4,7 +4,6 @@
 #      (copie de sauvegarde vpn.env.avant-rotation)
 #   2. lance vpn-appliquer.sh : Secrets + redémarrage des pods (~1 min de coupure chacun)
 #   3. vérifie l'IP et le pays de sortie de chaque gluetun, puis envoie le résultat sur Telegram
-# Le gluetun Docker (/ssd1/container/gluetun) n'est PAS concerné : il garde sa propre compose.
 #
 # Usage : python3 /ssd1/kubernetes/vpn-changer-pays.py               # passe au pays suivant maintenant
 #         python3 /ssd1/kubernetes/vpn-changer-pays.py Sweden        # passe à ce pays (nom anglais)

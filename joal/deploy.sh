@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installe joal (première fois) : Secret, volume Longhorn, copie des données de l'ancien Docker,
+# Installe joal : Secret, volume Longhorn (restauré depuis la sauvegarde Longhorn s'il manque),
 # puis (re)démarre le pod transmission qui contient joal, derrière son gluetun.
 # joal n'a PAS de gluetun à lui (voir le commentaire dans transmission/03-deployment.yaml).
 # Usage : bash /ssd1/kubernetes/joal/deploy.sh
@@ -11,16 +11,15 @@ cd "$(dirname "$0")"
 echo "=== 1. Secret (chemin + mot de passe de l'interface)"
 bash ./00-secret.sh
 
-echo; echo "=== 2. Volume Longhorn + copie des données Docker (uniquement à la création du volume)"
+echo; echo "=== 2. Volume Longhorn joal-data"
 if kubectl -n media get pvc joal-data >/dev/null 2>&1; then
-  echo "volume joal-data déjà présent : pas de nouvelle copie"
+  echo "volume joal-data déjà présent"
+elif bash "$K8S/longhorn-sauvegarde/restaurer-volume.sh" --liste joal-data 2>/dev/null | grep -q "media/joal-data"; then
+  echo "volume absent : restauration de la dernière sauvegarde Longhorn"
+  bash "$K8S/longhorn-sauvegarde/restaurer-volume.sh" joal-data --oui
 else
+  echo "volume absent et aucune sauvegarde : volume VIDE (config par défaut de joal)"
   kubectl apply -f 01-pvc.yaml
-  kubectl apply -f 02-migration-pod.yaml
-  while phase=$(kubectl -n media get pod joal-migration -o jsonpath='{.status.phase}'); [[ "$phase" =~ ^(Pending|Running)$ ]]; do sleep 3; done
-  kubectl -n media logs joal-migration
-  kubectl -n media delete pod joal-migration
-  [ "$phase" = Succeeded ] || { echo "!!! copie en échec"; exit 1; }
 fi
 
 echo; echo "=== 3. Pod transmission (gluetun + transmission + joal) et service de l'interface"

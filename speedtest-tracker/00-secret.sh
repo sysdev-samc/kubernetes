@@ -1,28 +1,18 @@
 #!/bin/bash
-# COPIE (lecture seule) APP_KEY et le mot de passe de la base depuis la compose Docker
-# /ssd1/container/speedtest-tracker.sav/docker-compose.yml (qui n'est PAS modifiée)
-# vers /ssd1/kubernetes/speedtest-tracker/secret.env (droits 600), puis crée le Secret k8s.
-# Les valeurs ne sont jamais affichées.
+# Crée (ou met à jour) le Secret "speedtest-tracker" depuis /ssd1/kubernetes/speedtest-tracker/secret.env
+# (ignoré par git, droits 600) : APP_KEY et DB_PASSWORD. Les valeurs ne sont jamais affichées.
+# APP_KEY doit rester celle d'origine (elle chiffre des données de la base) : si secret.env a
+# disparu, il est repris de la sauvegarde USB (/media/usb1/ssd1/kubernetes/speedtest-tracker/secret.env).
 set -e
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-SRC=/ssd1/container/speedtest-tracker.sav/docker-compose.yml
 DST=/ssd1/kubernetes/speedtest-tracker/secret.env
+SAUVEGARDE=/media/usb1/ssd1/kubernetes/speedtest-tracker/secret.env
 
 if [ ! -f "$DST" ]; then
-  umask 077
-  python3 - "$SRC" "$DST" <<'PY'
-import re, sys
-vals = {}
-for l in open(sys.argv[1]):
-    m = re.match(r'^\s*-\s*(APP_KEY|DB_PASSWORD)=(.*)$', l.rstrip('\n'))
-    if m: vals[m.group(1)] = m.group(2).strip().strip('"\'')
-assert set(vals) == {'APP_KEY', 'DB_PASSWORD'}, "APP_KEY ou DB_PASSWORD introuvable"
-with open(sys.argv[2], 'w') as f:
-    for k in ('APP_KEY', 'DB_PASSWORD'): f.write(f"{k}={vals[k]}\n")
-PY
-  chmod 600 "$DST"
-  echo "Créé : $DST"
+  if [ -f "$SAUVEGARDE" ]; then cp -p "$SAUVEGARDE" "$DST"; echo "$DST repris de la sauvegarde USB"
+  else echo "ERREUR : $DST absent (et pas de sauvegarde USB montée). Il contient APP_KEY=... et DB_PASSWORD=..."; exit 1; fi
 fi
+chmod 600 "$DST"
 
 kubectl -n media create secret generic speedtest-tracker \
   --from-env-file="$DST" --dry-run=client -o yaml | kubectl apply -f -

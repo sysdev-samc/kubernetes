@@ -2,20 +2,18 @@
 # Crée (ou met à jour) le Secret "joal" à partir de /ssd1/kubernetes/joal/joal.env (ignoré par git) :
 #   JOAL_UI_PREFIX        chemin de l'interface      -> http://192.168.1.150:12345/<prefix>/ui/
 #   JOAL_UI_SECRET_TOKEN  "secret token" demandé par l'interface (le mot de passe)
-# Au premier lancement, joal.env est créé avec les valeurs de l'ancienne compose Docker.
+# Si joal.env a disparu, il est repris de la sauvegarde USB (/media/usb1/ssd1/kubernetes/joal/joal.env) ;
+# sinon, le recréer à la main avec ces deux lignes (anciennes valeurs : voir le gestionnaire de mots de passe).
 # Les valeurs ne sont jamais affichées. Après modification : relancer ce script puis
-#   kubectl -n media rollout restart deploy/joal
+#   kubectl -n media rollout restart deploy/transmission   (joal tourne dans le pod transmission)
 set -e
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 ENV=/ssd1/kubernetes/joal/joal.env
-OLD=/ssd1/container/joal.sav/docker-compose.yml
+SAUVEGARDE=/media/usb1/ssd1/kubernetes/joal/joal.env
 
 if [ ! -f "$ENV" ]; then
-  prefix=$(grep -o 'joal.ui.path.prefix=[^"]*' "$OLD" | cut -d= -f2)
-  token=$(grep -o 'joal.ui.secret-token=[^"]*' "$OLD" | cut -d= -f2)
-  [ -n "$prefix" ] && [ -n "$token" ] || { echo "ERREUR : prefix/token introuvables dans $OLD -> crée $ENV à la main"; exit 1; }
-  ( umask 077; printf 'JOAL_UI_PREFIX=%s\nJOAL_UI_SECRET_TOKEN=%s\n' "$prefix" "$token" > "$ENV" )
-  echo "$ENV créé depuis $OLD"
+  if [ -f "$SAUVEGARDE" ]; then cp -p "$SAUVEGARDE" "$ENV"; echo "$ENV repris de la sauvegarde USB"
+  else echo "ERREUR : $ENV absent (et pas de sauvegarde USB montée) -> le créer avec JOAL_UI_PREFIX=... et JOAL_UI_SECRET_TOKEN=..."; exit 1; fi
 fi
 chmod 600 "$ENV"
 
