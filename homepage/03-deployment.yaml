@@ -65,7 +65,7 @@ spec:
             - { name: config, mountPath: /app/config/custom.js,       subPath: custom.js }
             - { name: logs,   mountPath: /app/config/logs }
             # Top des envois vers Internet (reseau/top-sortants.py --homepage), servi en
-            # http://localhost:3000/rapports/{top-sortants,securite-reseau}.json ; mis à jour sans redémarrer le pod
+            # http://localhost:3000/rapports/{top-sortants,securite-reseau,disques}.json ; mis à jour sans redémarrer le pod
             - { name: rapports, mountPath: /app/public/rapports, readOnly: true }
       volumes:
         - name: config
@@ -77,3 +77,4 @@ spec:
             sources:
               - configMap: { name: top-sortants, optional: true }      # reseau/top-sortants.py
               - configMap: { name: securite-reseau, optional: true }   # reseau/surveillance.py
+              - configMap: { name: disques, optional: true }           # disques/disques.py

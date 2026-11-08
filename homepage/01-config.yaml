@@ -230,6 +230,18 @@ data:
                 items: sites
                 name: nom
                 label: texte
+        - Disques:
+            icon: mdi-harddisk
+            description: SMART des disques des 3 NAS (mis à jour chaque heure ; alertes sur Telegram)
+            widget:
+              type: customapi
+              url: http://localhost:3000/rapports/disques.json   # produit par disques/disques.py
+              refreshInterval: 300000
+              display: dynamic-list
+              mappings:
+                items: disques
+                name: nom
+                label: texte
 
   bookmarks.yaml: |
     []
