@@ -1,0 +1,5 @@
+# Cible des sauvegardes Longhorn (voir /ssd1/kubernetes/longhorn-sauvegarde/README.md).
+# Installé dans /etc/exports.d/longhorn-backup.exports (nas2) par activer-nfs.sh.
+# mp=/media/usb1 : partage actif SEULEMENT si le disque USB est monté (sinon on écrirait sur /).
+# Clients autorisés : machines du LAN et pods Longhorn (réseau des pods 10.42.0.0/16).
+/media/usb1/longhorn-backup  192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,mp=/media/usb1) 10.42.0.0/16(rw,sync,no_subtree_check,no_root_squash,mp=/media/usb1)
