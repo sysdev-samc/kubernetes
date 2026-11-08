@@ -33,12 +33,21 @@ else
   kubectl -n media delete secret gluetun-vpn --ignore-not-found
 fi
 
+# Pays de sortie d'un pod (jusqu'à 6 essais : le tunnel peut mettre un moment à être utilisable)
+pays_de() {
+  local c i
+  for i in 1 2 3 4 5 6; do
+    c=$(kubectl -n media exec deploy/$1 -c $1 -- curl -s -m8 https://ipinfo.io/country 2>/dev/null) && [ -n "$c" ] && { echo "$c"; return; }
+    sleep 10
+  done
+  echo "? (pas de réponse)"
+}
 echo; echo "=== 4. Pays de sortie"
 echo "maison          : $(curl -s -m5 https://ipinfo.io/country)"
 kubectl -n media get deploy transmission >/dev/null 2>&1 && \
-  echo "transmission    : $(kubectl -n media exec deploy/transmission -c transmission -- curl -s -m8 https://ipinfo.io/country)"
+  echo "transmission    : $(pays_de transmission)"
 kubectl -n media get deploy jackett -o jsonpath='{.spec.template.spec.initContainers[*].name}' 2>/dev/null | grep -qw gluetun && \
-  echo "jackett         : $(kubectl -n media exec deploy/jackett -c jackett -- curl -s -m8 https://ipinfo.io/country)"
+  echo "jackett         : $(pays_de jackett)"
 docker ps --format '{{.Names}}' | grep -qx gluetun && \
   echo "gluetun Docker  : $(docker exec gluetun wget -qO- -T 8 https://ipinfo.io/country)   (config Docker séparée, non modifiée)"
 echo "(SERVER_COUNTRIES dans vpn.env : $(grep '^SERVER_COUNTRIES=' /ssd1/kubernetes/gluetun/vpn.env | cut -d= -f2))"
