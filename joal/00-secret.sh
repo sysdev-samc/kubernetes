@@ -8,7 +8,7 @@
 set -e
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 ENV=/ssd1/kubernetes/joal/joal.env
-OLD=/ssd1/container/joal/docker-compose.yml
+OLD=/ssd1/container/joal.sav/docker-compose.yml
 
 if [ ! -f "$ENV" ]; then
   prefix=$(grep -o 'joal.ui.path.prefix=[^"]*' "$OLD" | cut -d= -f2)

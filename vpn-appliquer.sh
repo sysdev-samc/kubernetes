@@ -3,7 +3,7 @@
 # À lancer après CHAQUE modification de vpn.env (fournisseur, pays, identifiants...).
 #   1. met à jour les Secrets gluetun-env / gluetun-certs
 #   2. redémarre le pod transmission, seul pod avec un gluetun (transmission + joal + jackett) : ~1 min de coupure
-# Le gluetun Docker (/ssd1/container/gluetun) n'est PAS concerné : il garde sa propre compose.
+# (L'ancien gluetun Docker, /ssd1/container/gluetun.sav, n'est plus utilisé.)
 # Usage : bash /ssd1/kubernetes/vpn-appliquer.sh
 set -e
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml

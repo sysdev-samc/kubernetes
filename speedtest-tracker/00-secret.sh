@@ -1,11 +1,11 @@
 #!/bin/bash
 # COPIE (lecture seule) APP_KEY et le mot de passe de la base depuis la compose Docker
-# /ssd1/container/speedtest-tracker/docker-compose.yml (qui n'est PAS modifiée)
+# /ssd1/container/speedtest-tracker.sav/docker-compose.yml (qui n'est PAS modifiée)
 # vers /ssd1/kubernetes/speedtest-tracker/secret.env (droits 600), puis crée le Secret k8s.
 # Les valeurs ne sont jamais affichées.
 set -e
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-SRC=/ssd1/container/speedtest-tracker/docker-compose.yml
+SRC=/ssd1/container/speedtest-tracker.sav/docker-compose.yml
 DST=/ssd1/kubernetes/speedtest-tracker/secret.env
 
 if [ ! -f "$DST" ]; then
