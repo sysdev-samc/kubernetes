@@ -10,17 +10,4 @@ spec:
   resources:
     requests:
       storage: 2Gi
----
-# /downloads PARTAGÉ entre transmission, radarr et sonarr, répliqué sur nas1 + nas2.
-# ReadWriteMany : Longhorn le sert en NFS (pod "share-manager") à plusieurs pods à la fois.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: downloads
-  namespace: media
-spec:
-  storageClassName: longhorn
-  accessModes: [ReadWriteMany]
-  resources:
-    requests:
-      storage: 50Gi               # agrandissable plus tard sans coupure
+# /downloads n'est plus sur Longhorn : hostPath /volume1/downloads (voir phase-c-hostpath.sh).

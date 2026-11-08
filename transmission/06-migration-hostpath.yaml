@@ -1,0 +1,42 @@
+# PHASE C : copie le contenu du volume Longhorn "downloads" vers /volume1/downloads (disque de nas2).
+# Transmission, radarr et sonarr doivent être arrêtés. Le volume Longhorn est monté en LECTURE SEULE :
+# rien n'y est effacé. Vérifie ensuite que chaque fichier est présent avec la même taille.
+# À supprimer une fois terminé.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: downloads-vers-hostpath
+  namespace: media
+spec:
+  nodeName: nas2
+  restartPolicy: Never
+  containers:
+    - name: copy
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          cd /src
+          for d in complete incomplete temp; do
+            [ -d "$d" ] && cp -a "$d" /dst/
+          done
+          chown -R 911:100 /dst/complete /dst/incomplete /dst/temp
+          # Vérification : chaque fichier source doit exister à l'identique (taille) dans la cible
+          find complete incomplete temp -type f -exec stat -c '%s %n' {} + | sort > /tmp/src
+          cd /dst
+          find complete incomplete temp -type f -exec stat -c '%s %n' {} + | sort > /tmp/dst
+          manquants=$(comm -23 /tmp/src /tmp/dst)
+          if [ -n "$manquants" ]; then echo "MANQUANTS OU DIFFÉRENTS :"; echo "$manquants"; exit 1; fi
+          echo "fichiers copiés : $(wc -l < /tmp/src)"
+          du -sh /dst/complete /dst/incomplete
+          echo COPIE_OK
+      volumeMounts:
+        - { name: src, mountPath: /src, readOnly: true }
+        - { name: dst, mountPath: /dst }
+  volumes:
+    - name: src
+      persistentVolumeClaim: { claimName: downloads, readOnly: true }
+    - name: dst
+      hostPath: { path: /volume1/downloads, type: Directory }

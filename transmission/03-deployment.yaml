@@ -95,10 +95,10 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim: { claimName: transmission-config }
+        # Téléchargements et dossier watch : disque local du nœud (/volume1/downloads, non répliqué),
+        # visibles par le partage réseau. Sur nas1 ce sont les dossiers de nas1 (vides par défaut).
         - name: downloads
-          persistentVolumeClaim: { claimName: downloads }
-        # Dossier watch : sur le disque de nas2, pour que tu puisses y déposer des .torrent
-        # par le partage réseau. (Vide si le pod tourne sur nas1.)
+          hostPath: { path: /volume1/downloads, type: DirectoryOrCreate }
         - name: watch
           hostPath: { path: /volume1/downloads/watch, type: DirectoryOrCreate }
         - name: gluetun-data

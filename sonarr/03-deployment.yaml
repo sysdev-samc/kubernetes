@@ -67,4 +67,4 @@ spec:
         - name: tv
           hostPath: { path: /volume1/cinema/parent/tvshow, type: DirectoryOrCreate }
         - name: downloads
-          persistentVolumeClaim: { claimName: downloads }   # Longhorn RWX partagé (nas1 + nas2)
+          hostPath: { path: /volume1/downloads, type: DirectoryOrCreate }
