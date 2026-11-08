@@ -13,8 +13,8 @@ DEST=nas1
 DIR=/ssd1/kubernetes
 cd "$DIR"
 
-# 1. Liste des secrets : fichiers ignorés par git, hors fichiers jetables (logs, sauvegardes)
-mapfile -t files < <(git ls-files --others --ignored --exclude-standard | grep -vE '\.log$|\.bak|~$' | sort)
+# 1. Liste des secrets : fichiers ignorés par git, hors fichiers jetables (logs, sauvegardes, caches)
+mapfile -t files < <(git ls-files --others --ignored --exclude-standard | grep -vE '\.log$|\.bak|~$|__pycache__/|\.pyc$|(^|/)\.kube/' | sort)
 [ ${#files[@]} -gt 0 ] || { echo "Aucun secret trouvé."; exit 0; }
 echo "=== Secrets à copier vers $DEST :"
 for f in "${files[@]}"; do printf '  %-40s droits %s\n' "$f" "$(stat -c %a "$f")"; done
